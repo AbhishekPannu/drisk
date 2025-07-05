@@ -5,7 +5,6 @@ import 'package:drisk/widgets/animated_background.dart';
 import 'package:flutter/material.dart';
 
 class MainScreen extends StatefulWidget {
-  // Add a parameter to accept the starting page index
   final int initialPageIndex;
 
   const MainScreen({super.key, this.initialPageIndex = 0});
@@ -15,21 +14,12 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
-  // Change these to be initialized in initState
   late int _currentIndex;
   late PageController _pageController;
-
-  final List<Widget> _pages = [
-    // Pass a callback to LogDreamPage to handle navigation
-    LogDreamPage(onDreamSaved: () => {}), // We'll update this later
-    const DreamListPage(),
-    const AnalyticsPage(),
-  ];
 
   @override
   void initState() {
     super.initState();
-    // Use the widget's parameter to set the initial state
     _currentIndex = widget.initialPageIndex;
     _pageController = PageController(initialPage: _currentIndex);
   }
@@ -47,7 +37,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _onNavItemTapped(int index) {
-    // When a nav item is tapped, animate the PageView
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 400),
@@ -55,7 +44,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  // A function to allow child pages to change the tab
   void changePage(int index) {
     _onNavItemTapped(index);
   }
@@ -68,7 +56,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         child: PageView(
           controller: _pageController,
           onPageChanged: _onPageChanged,
-          // Rebuild the pages list here to pass the changePage function
           children: [
             LogDreamPage(onDreamSaved: () => changePage(1)),
             const DreamListPage(),

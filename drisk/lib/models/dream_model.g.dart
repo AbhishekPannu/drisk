@@ -28,13 +28,14 @@ class DreamAdapter extends TypeAdapter<Dream> {
       tags: (fields[8] as List).cast<String>(),
       isFavorite: fields[9] as bool?,
       recurringDreamGroupId: fields[10] as String?,
+      voiceMemoPath: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Dream obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class DreamAdapter extends TypeAdapter<Dream> {
       ..writeByte(9)
       ..write(obj.isFavorite)
       ..writeByte(10)
-      ..write(obj.recurringDreamGroupId);
+      ..write(obj.recurringDreamGroupId)
+      ..writeByte(11)
+      ..write(obj.voiceMemoPath);
   }
 
   @override

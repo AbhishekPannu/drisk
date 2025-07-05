@@ -1,6 +1,6 @@
 import 'dart:io';
-
 import 'package:drisk/models/dream_model.dart';
+import 'package:drisk/widgets/frosted_glass_card.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -260,29 +260,6 @@ class _LogDreamPageState extends State<LogDreamPage> {
     }
   }
 
-  IconData _getMoonIcon(DreamMood mood) {
-    switch (mood) {
-      case DreamMood.nightmare:
-        return Icons.new_releases;
-      case DreamMood.bad:
-        return Icons.nightlight_round;
-      case DreamMood.neutral:
-        return Icons.circle;
-      case DreamMood.good:
-        return Icons.brightness_3;
-      case DreamMood.excellent:
-        return Icons.wb_sunny;
-    }
-  }
-
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
-    return "${twoDigits(d.inHours)}:$twoDigitMinutes:$twoDigitSeconds"
-        .replaceFirst('00:', '');
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -290,7 +267,8 @@ class _LogDreamPageState extends State<LogDreamPage> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text(_isEditing ? 'Edit Dream' : 'Log a New Dream'),
+          title: Text(_isEditing ? 'Edit Dream' : 'Log a New Dream',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
@@ -301,261 +279,402 @@ class _LogDreamPageState extends State<LogDreamPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Text Fields Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _titleController,
-                          textCapitalization: TextCapitalization.sentences,
-                          decoration:
-                              const InputDecoration(labelText: 'Dream Title'),
-                          validator: (v) =>
-                              v!.isEmpty ? 'Please enter a title' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _descriptionController,
-                          textCapitalization: TextCapitalization.sentences,
-                          decoration: const InputDecoration(
-                              labelText: 'Dream Description'),
-                          maxLines: 5,
-                          validator: (v) =>
-                              v!.isEmpty ? 'Please describe your dream' : null,
-                        ),
-                      ],
-                    ),
+                FrostedGlassCard(
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _titleController,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration:
+                            const InputDecoration(labelText: 'Dream Title'),
+                        validator: (v) =>
+                            v!.isEmpty ? 'Please enter a title' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descriptionController,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                            labelText: 'Dream Description'),
+                        maxLines: 5,
+                        validator: (v) =>
+                            v!.isEmpty ? 'Please describe your dream' : null,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                // Details Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.calendar_today),
-                          title: const Text('Dream Date'),
-                          subtitle:
-                              Text(DateFormat.yMMMMd().format(_selectedDate)),
-                          trailing: const Icon(Icons.edit),
-                          onTap: () => _selectDate(context),
-                        ),
-                        const Divider(),
-                        const Text('Mood',
+                const SizedBox(height: 16),
+                FrostedGlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.calendar_today),
+                        title: const Text('Dream Date'),
+                        subtitle:
+                            Text(DateFormat.yMMMMd().format(_selectedDate)),
+                        trailing: const Icon(Icons.edit),
+                        onTap: () => _selectDate(context),
+                      ),
+                      const Divider(color: Colors.white12),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0, bottom: 16.0),
+                        child: Text('Mood',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: DreamMood.values.map((mood) {
-                            final isSelected = _selectedMood == mood;
-                            return IconButton(
-                              iconSize: isSelected ? 32 : 24,
-                              icon: Icon(_getMoonIcon(mood)),
-                              color: isSelected
-                                  ? Theme.of(context).colorScheme.secondary
-                                  : Colors.grey,
-                              onPressed: () =>
-                                  setState(() => _selectedMood = mood),
-                              tooltip: mood.name,
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 24),
-                        DropdownButtonFormField<DreamType>(
-                          value: _selectedType,
-                          decoration:
-                              const InputDecoration(labelText: 'Dream Type'),
-                          items: DreamType.values
-                              .map((type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(type.name),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedType = value!;
-                              if (_selectedType != DreamType.recurring) {
-                                _selectedRecurringGroupId = null;
-                              }
-                            });
-                          },
-                        ),
-                        if (_selectedType == DreamType.recurring)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 24.0),
-                            child: DropdownButtonFormField<String?>(
-                              value: _selectedRecurringGroupId,
-                              hint: const Text('Link to a recurring series...'),
-                              decoration: const InputDecoration(
-                                  labelText: 'Recurring Series'),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: 'new',
-                                  child: Text('Start a New Series'),
-                                ),
-                                ..._existingRecurringDreams.map(
-                                  (dream) => DropdownMenuItem(
-                                    value: dream.recurringDreamGroupId,
-                                    child: Text(dream.title,
-                                        overflow: TextOverflow.ellipsis),
-                                  ),
-                                ),
-                              ],
-                              onChanged: (value) => setState(
-                                  () => _selectedRecurringGroupId = value),
-                            ),
-                          ),
-                        const SizedBox(height: 24),
-                        TextFormField(
-                          controller: _tagsController,
-                          decoration: const InputDecoration(
-                            labelText: 'Tags (comma-separated)',
-                            hintText: 'e.g. flying, school, family',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Mark as Favorite'),
-                          value: _isFavorite,
-                          onChanged: (bool value) =>
-                              setState(() => _isFavorite = value),
-                          secondary: Icon(
-                            _isFavorite ? Icons.star : Icons.star_border,
-                            color:
-                                _isFavorite ? Colors.yellow[600] : Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // --- VOICE MEMO CARD ---
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        if (_voiceMemoPath == null)
-                          ListTile(
-                            leading: Icon(
-                                _isRecording ? Icons.stop_circle : Icons.mic),
-                            title: Text(
-                                _isRecording ? 'Recording...' : 'Record Memo'),
-                            onTap: _toggleRecording,
-                            iconColor: _isRecording
-                                ? Colors.redAccent
-                                : Theme.of(context).colorScheme.secondary,
-                          )
-                        else
-                          Column(
-                            children: [
-                              Row(
-                                children: [
-                                  IconButton(
-                                    icon: Icon(_isMemoPlaying
-                                        ? Icons.pause_circle_filled
-                                        : Icons.play_circle_filled),
-                                    onPressed: _playMemo,
-                                    iconSize: 32,
-                                  ),
-                                  Expanded(
-                                    child: Slider(
-                                      value: _memoPosition.inMilliseconds
-                                          .toDouble()
-                                          .clamp(
-                                              0.0,
-                                              _memoDuration.inMilliseconds
-                                                  .toDouble()),
-                                      max: _memoDuration.inMilliseconds
-                                          .toDouble(),
-                                      onChanged: (value) async {
-                                        final position = Duration(
-                                            milliseconds: value.toInt());
-                                        await _audioPlayer.seek(position);
-                                      },
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    color: Colors.redAccent,
-                                    onPressed: _deleteMemo,
-                                  ),
-                                ],
+                                fontSize: 16, fontWeight: FontWeight.w600)),
+                      ),
+                      _MoodSelector(
+                        selectedMood: _selectedMood,
+                        onMoodSelected: (mood) =>
+                            setState(() => _selectedMood = mood),
+                      ),
+                      const SizedBox(height: 24),
+                      DropdownButtonFormField<DreamType>(
+                        value: _selectedType,
+                        decoration:
+                            const InputDecoration(labelText: 'Dream Type'),
+                        items: DreamType.values
+                            .map((type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type.name),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedType = value!;
+                            if (_selectedType != DreamType.recurring) {
+                              _selectedRecurringGroupId = null;
+                            }
+                          });
+                        },
+                      ),
+                      if (_selectedType == DreamType.recurring)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: DropdownButtonFormField<String?>(
+                            value: _selectedRecurringGroupId,
+                            hint: const Text('Link to a recurring series...'),
+                            decoration: const InputDecoration(
+                                labelText: 'Recurring Series'),
+                            items: [
+                              const DropdownMenuItem(
+                                value: 'new',
+                                child: Text('Start a New Series'),
                               ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 24),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(_formatDuration(_memoPosition)),
-                                    Text(_formatDuration(_memoDuration)),
-                                  ],
+                              ..._existingRecurringDreams.map(
+                                (dream) => DropdownMenuItem(
+                                  value: dream.recurringDreamGroupId,
+                                  child: Text(dream.title,
+                                      overflow: TextOverflow.ellipsis),
                                 ),
                               ),
                             ],
+                            onChanged: (value) => setState(
+                                () => _selectedRecurringGroupId = value),
                           ),
-                      ],
-                    ),
+                        ),
+                      const SizedBox(height: 24),
+                      TextFormField(
+                        controller: _tagsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Tags (comma-separated)',
+                          hintText: 'e.g. flying, school, family',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Mark as Favorite'),
+                        value: _isFavorite,
+                        onChanged: (bool value) =>
+                            setState(() => _isFavorite = value),
+                        activeColor: Colors.yellow[600],
+                        secondary: Icon(
+                          _isFavorite ? Icons.star : Icons.star_border,
+                          color: _isFavorite ? Colors.yellow[600] : Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                // Sliders Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text('Thrill Level: ${_thrillLevel.toInt()}/10'),
-                        Slider(
-                          value: _thrillLevel,
-                          min: 1,
-                          max: 10,
-                          divisions: 9,
-                          label: _thrillLevel.round().toString(),
-                          onChanged: (value) =>
-                              setState(() => _thrillLevel = value),
+                const SizedBox(height: 16),
+                FrostedGlassCard(
+                  child: Column(
+                    children: [
+                      if (_voiceMemoPath == null)
+                        _RecordButton(
+                          isRecording: _isRecording,
+                          onTap: _toggleRecording,
+                        )
+                      else
+                        _MemoPlayer(
+                          audioPlayer: _audioPlayer,
+                          isPlaying: _isMemoPlaying,
+                          duration: _memoDuration,
+                          position: _memoPosition,
+                          onPlayPause: _playMemo,
+                          onDelete: _deleteMemo,
+                          onSeek: (pos) => _audioPlayer.seek(pos),
                         ),
-                        Text('Clarity: ${_clarity.toInt()}/10'),
-                        Slider(
-                          value: _clarity,
-                          min: 1,
-                          max: 10,
-                          divisions: 9,
-                          label: _clarity.round().toString(),
-                          onChanged: (value) =>
-                              setState(() => _clarity = value),
-                        ),
-                      ],
-                    ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FrostedGlassCard(
+                  child: Column(
+                    children: [
+                      Text('Thrill Level: ${_thrillLevel.toInt()}/10'),
+                      Slider(
+                        value: _thrillLevel,
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        label: _thrillLevel.round().toString(),
+                        onChanged: (value) =>
+                            setState(() => _thrillLevel = value),
+                        activeColor: Theme.of(context).colorScheme.secondary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Clarity: ${_clarity.toInt()}/10'),
+                      Slider(
+                        value: _clarity,
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        label: _clarity.round().toString(),
+                        onChanged: (value) => setState(() => _clarity = value),
+                        activeColor: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 32),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: _saveDream,
-                    icon: const Icon(Icons.save_alt_outlined),
-                    label: Text(_isEditing ? 'Update Dream' : 'Save Dream'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 15),
-                      textStyle: const TextStyle(fontSize: 16),
-                    ),
-                  ),
+                _SaveDreamButton(
+                  isEditing: _isEditing,
+                  onPressed: _saveDream,
                 ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- NEW/IMPROVED HELPER WIDGETS ---
+
+class _MoodSelector extends StatelessWidget {
+  final DreamMood selectedMood;
+  final ValueChanged<DreamMood> onMoodSelected;
+
+  const _MoodSelector(
+      {required this.selectedMood, required this.onMoodSelected});
+
+  static const Map<DreamMood, IconData> _moodIcons = {
+    DreamMood.nightmare: Icons.new_releases,
+    DreamMood.bad: Icons.nightlight_round,
+    DreamMood.neutral: Icons.circle,
+    DreamMood.good: Icons.brightness_3,
+    DreamMood.excellent: Icons.wb_sunny,
+  };
+
+  static const Map<DreamMood, Color> _moodColors = {
+    DreamMood.nightmare: Colors.red,
+    DreamMood.bad: Colors.orange,
+    DreamMood.neutral: Colors.grey,
+    DreamMood.good: Colors.lightBlue,
+    DreamMood.excellent: Colors.yellow,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: DreamMood.values.map((mood) {
+        final isSelected = selectedMood == mood;
+        return GestureDetector(
+          onTap: () => onMoodSelected(mood),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected
+                  ? _moodColors[mood]!.withOpacity(0.3)
+                  : Colors.transparent,
+              border: Border.all(
+                color: isSelected
+                    ? _moodColors[mood]!
+                    : Colors.grey.withOpacity(0.5),
+                width: 1.5,
+              ),
+            ),
+            child: Icon(
+              _moodIcons[mood],
+              color: _moodColors[mood],
+              size: 28,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _RecordButton extends StatelessWidget {
+  final bool isRecording;
+  final VoidCallback onTap;
+
+  const _RecordButton({required this.isRecording, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(50),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+            color: isRecording
+                ? Colors.red.withOpacity(0.2)
+                : Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(50),
+            border: Border.all(
+                color: isRecording
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.secondary,
+                width: 1.5)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(isRecording ? Icons.stop_circle : Icons.mic,
+                color: isRecording
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.secondary),
+            const SizedBox(width: 12),
+            Text(isRecording ? 'Recording...' : 'Record Voice Memo',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MemoPlayer extends StatelessWidget {
+  final AudioPlayer audioPlayer;
+  final bool isPlaying;
+  final Duration duration;
+  final Duration position;
+  final VoidCallback onPlayPause;
+  final VoidCallback onDelete;
+  final Future<void> Function(Duration) onSeek; // <-- CORRECTED TYPE
+
+  const _MemoPlayer({
+    required this.audioPlayer,
+    required this.isPlaying,
+    required this.duration,
+    required this.position,
+    required this.onPlayPause,
+    required this.onDelete,
+    required this.onSeek,
+  });
+
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(d.inMinutes.remainder(60));
+    final seconds = twoDigits(d.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_filled),
+              onPressed: onPlayPause,
+              iconSize: 40,
+              color: Theme.of(context).colorScheme.secondary,
+            ),
+            Expanded(
+              child: Slider(
+                value: position.inMilliseconds
+                    .toDouble()
+                    .clamp(0.0, duration.inMilliseconds.toDouble()),
+                max: duration.inMilliseconds.toDouble() > 0
+                    ? duration.inMilliseconds.toDouble()
+                    : 1.0,
+                onChanged: (value) async {
+                  final newPosition = Duration(milliseconds: value.toInt());
+                  await onSeek(newPosition); // <-- Now correctly awaited
+                },
+                activeColor: Theme.of(context).colorScheme.secondary,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_forever_outlined),
+              color: Colors.redAccent,
+              onPressed: onDelete,
+              iconSize: 30,
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_formatDuration(position)),
+              Text(_formatDuration(duration)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SaveDreamButton extends StatelessWidget {
+  final bool isEditing;
+  final VoidCallback onPressed;
+
+  const _SaveDreamButton({required this.isEditing, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).colorScheme.secondary,
+            Theme.of(context).primaryColor,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.save_alt_outlined, color: Colors.black),
+        label: Text(
+          isEditing ? 'Update Dream' : 'Save Dream',
+          style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
         ),
       ),
     );
