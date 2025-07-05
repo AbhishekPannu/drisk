@@ -1,16 +1,14 @@
-// lib/widgets/animated_background.dart
-
 import 'package:flutter/material.dart';
 import 'package:animated_background/animated_background.dart';
 
 class DreamyBackground extends StatelessWidget {
   final Widget child;
-  final TickerProvider vsync; // <-- ADD THIS
+  final TickerProvider vsync;
 
   const DreamyBackground({
     super.key,
     required this.child,
-    required this.vsync, // <-- ADD THIS
+    required this.vsync,
   });
 
   @override
@@ -26,7 +24,7 @@ class DreamyBackground extends StatelessWidget {
           spawnMaxRadius: 2.5,
         ),
       ),
-      vsync: vsync, // <-- CHANGE THIS from VSyncProvider.of(context)
+      vsync: vsync,
       child: child,
     );
   }
