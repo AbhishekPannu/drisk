@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:drisk/models/dream_model.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:uuid/uuid.dart';
 
 class LogDreamPage extends StatefulWidget {
@@ -34,13 +39,38 @@ class _LogDreamPageState extends State<LogDreamPage> {
   String? _selectedRecurringGroupId;
   List<Dream> _existingRecurringDreams = [];
 
-  // REMOVED all audio and sketch related state variables
+  // --- AUDIO STATE ---
+  late final AudioRecorder _audioRecorder;
+  late final AudioPlayer _audioPlayer;
+  bool _isRecording = false;
+  String? _voiceMemoPath;
+  bool _isMemoPlaying = false;
+  Duration _memoDuration = Duration.zero;
+  Duration _memoPosition = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _isEditing = widget.dreamToEdit != null;
     _fetchRecurringDreams();
+
+    // Initialize audio components
+    _audioRecorder = AudioRecorder();
+    _audioPlayer = AudioPlayer();
+
+    // Listen to player state
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      setState(() => _isMemoPlaying = state == PlayerState.playing);
+    });
+    _audioPlayer.onDurationChanged.listen((d) {
+      if (!mounted) return;
+      setState(() => _memoDuration = d);
+    });
+    _audioPlayer.onPositionChanged.listen((p) {
+      if (!mounted) return;
+      setState(() => _memoPosition = p);
+    });
 
     if (_isEditing) {
       _populateFormForEditing();
@@ -71,7 +101,10 @@ class _LogDreamPageState extends State<LogDreamPage> {
     _clarity = dream.clarity;
     _isFavorite = dream.isFavorite ?? false;
     _selectedRecurringGroupId = dream.recurringDreamGroupId;
-    // REMOVED populating voice and sketch paths
+    _voiceMemoPath = dream.voiceMemoPath;
+    if (_voiceMemoPath != null) {
+      _audioPlayer.setSourceDeviceFile(_voiceMemoPath!);
+    }
   }
 
   @override
@@ -79,7 +112,8 @@ class _LogDreamPageState extends State<LogDreamPage> {
     _titleController.dispose();
     _descriptionController.dispose();
     _tagsController.dispose();
-    // REMOVED audio recorder and player dispose()
+    _audioRecorder.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -95,7 +129,60 @@ class _LogDreamPageState extends State<LogDreamPage> {
     }
   }
 
-  // REMOVED _toggleRecording, _addOrViewSketch, and _playMemo methods
+  Future<void> _toggleRecording() async {
+    if (await _audioRecorder.hasPermission()) {
+      if (_isRecording) {
+        final path = await _audioRecorder.stop();
+        if (path != null) {
+          setState(() {
+            _isRecording = false;
+            _voiceMemoPath = path;
+            _audioPlayer.setSourceDeviceFile(path);
+          });
+        }
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final path =
+            '${dir.path}/dream_memo_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _audioRecorder.start(const RecordConfig(), path: path);
+        setState(() => _isRecording = true);
+      }
+    } else {
+      // Handle permission denial
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission is required to record.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _playMemo() async {
+    if (_voiceMemoPath == null) return;
+
+    if (_isMemoPlaying) {
+      await _audioPlayer.pause();
+    } else {
+      await _audioPlayer.resume();
+    }
+  }
+
+  void _deleteMemo() {
+    if (_voiceMemoPath != null) {
+      File(_voiceMemoPath!)
+          .delete()
+          .catchError((e) => debugPrint("Error deleting file: $e"));
+      _audioPlayer.stop();
+      setState(() {
+        _voiceMemoPath = null;
+        _memoDuration = Duration.zero;
+        _memoPosition = Duration.zero;
+      });
+    }
+  }
 
   void _saveDream() {
     try {
@@ -128,7 +215,7 @@ class _LogDreamPageState extends State<LogDreamPage> {
         dream.tags = tags;
         dream.isFavorite = _isFavorite;
         dream.recurringDreamGroupId = finalRecurringId;
-        // REMOVED setting voice and sketch paths
+        dream.voiceMemoPath = _voiceMemoPath;
         dream.save();
       } else {
         final newDream = Dream(
@@ -143,7 +230,7 @@ class _LogDreamPageState extends State<LogDreamPage> {
           tags: tags,
           isFavorite: _isFavorite,
           recurringDreamGroupId: finalRecurringId,
-          // REMOVED passing voice and sketch paths
+          voiceMemoPath: _voiceMemoPath,
         );
         Hive.box<Dream>('dreams').add(newDream);
       }
@@ -166,7 +253,7 @@ class _LogDreamPageState extends State<LogDreamPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving dream. Check console for details.'),
+          content: const Text('Error saving dream. Check console for details.'),
           backgroundColor: Colors.red[800],
         ),
       );
@@ -186,6 +273,14 @@ class _LogDreamPageState extends State<LogDreamPage> {
       case DreamMood.excellent:
         return Icons.wb_sunny;
     }
+  }
+
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
+    return "${twoDigits(d.inHours)}:$twoDigitMinutes:$twoDigitSeconds"
+        .replaceFirst('00:', '');
   }
 
   @override
@@ -343,7 +438,78 @@ class _LogDreamPageState extends State<LogDreamPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // REMOVED the Card for Record/Sketch buttons
+                // --- VOICE MEMO CARD ---
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        if (_voiceMemoPath == null)
+                          ListTile(
+                            leading: Icon(
+                                _isRecording ? Icons.stop_circle : Icons.mic),
+                            title: Text(
+                                _isRecording ? 'Recording...' : 'Record Memo'),
+                            onTap: _toggleRecording,
+                            iconColor: _isRecording
+                                ? Colors.redAccent
+                                : Theme.of(context).colorScheme.secondary,
+                          )
+                        else
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(_isMemoPlaying
+                                        ? Icons.pause_circle_filled
+                                        : Icons.play_circle_filled),
+                                    onPressed: _playMemo,
+                                    iconSize: 32,
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: _memoPosition.inMilliseconds
+                                          .toDouble()
+                                          .clamp(
+                                              0.0,
+                                              _memoDuration.inMilliseconds
+                                                  .toDouble()),
+                                      max: _memoDuration.inMilliseconds
+                                          .toDouble(),
+                                      onChanged: (value) async {
+                                        final position = Duration(
+                                            milliseconds: value.toInt());
+                                        await _audioPlayer.seek(position);
+                                      },
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    color: Colors.redAccent,
+                                    onPressed: _deleteMemo,
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 24),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(_formatDuration(_memoPosition)),
+                                    Text(_formatDuration(_memoDuration)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 // Sliders Card
                 Card(
                   child: Padding(

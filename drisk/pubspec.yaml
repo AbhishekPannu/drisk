@@ -26,8 +26,14 @@ dependencies:
 
   # Export functionality
   csv: ^6.0.0
-  share_plus: ^9.0.0 # Keep for export feature
-  path_provider: ^2.1.2 # Keep for creating the export file
+  share_plus: ^9.0.0
+  path_provider: ^2.1.2
+
+  # --- ADDED FOR AUDIO ---
+  record: ^5.0.5
+  audioplayers: ^6.0.0
+  # -----------------------
+
 
 dev_dependencies:
   flutter_test:
@@ -36,6 +42,9 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.6
+
+dependency_overrides:
+  record_linux: ^1.0.0
 
 flutter:
   uses-material-design: true
