@@ -37,7 +37,8 @@ class Dream extends HiveObject {
   @HiveField(10)
   String? recurringDreamGroupId;
 
-  // REMOVED voiceMemoPath and sketchPath fields
+  @HiveField(11) // New field for voice memo
+  String? voiceMemoPath;
 
   Dream({
     required this.id,
@@ -51,7 +52,7 @@ class Dream extends HiveObject {
     required this.tags,
     this.isFavorite,
     this.recurringDreamGroupId,
-    // REMOVED voiceMemoPath and sketchPath from constructor
+    this.voiceMemoPath, // Added to constructor
   });
 }
 
