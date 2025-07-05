@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:drisk/models/dream_model.dart';
 import 'package:drisk/screens/log_dream_page.dart';
+import 'package:drisk/services/data_service.dart'; // <-- ADD THIS IMPORT
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -13,12 +14,44 @@ class DreamListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Instantiate the service to use its methods
+    final DataService dataService = DataService();
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Dream Journal'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        // --- ADD ACTIONS MENU FOR IMPORT/EXPORT ---
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'export') {
+                dataService.showExportDialog(context);
+              } else if (value == 'import') {
+                dataService.showImportDialog(context);
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.upload_file_outlined),
+                  title: Text('Export Data'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'import',
+                child: ListTile(
+                  leading: Icon(Icons.download_done_outlined),
+                  title: Text('Import Data'),
+                ),
+              ),
+            ],
+          ),
+        ],
+        // ------------------------------------------
       ),
       body: ValueListenableBuilder(
         valueListenable: Hive.box<Dream>('dreams').listenable(),
@@ -48,6 +81,7 @@ class DreamListPage extends StatelessWidget {
   }
 }
 
+// ... THE REST OF THE FILE (DreamCard, _MemoPlayer, etc.) REMAINS UNCHANGED ...
 class DreamCard extends StatelessWidget {
   final Dream dream;
   const DreamCard({super.key, required this.dream});
